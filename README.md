@@ -1,4 +1,4 @@
-<h2 align="center"> Steering Visuomotor Policy via Cross-View Goal Alignment </h2>
+<h2 align="center"> Scalable Multi-Task Reinforcement Learning for Generalizable <br>Spatial Intelligence in Visuomotor Agents </h2>
 
 <div align="center">
 
@@ -12,5 +12,5 @@ All authors are affiliated with Team **[`CraftJarvis`](https://craftjarvis.githu
 [![BibTeX](https://img.shields.io/badge/BibTeX-Citation-blueviolet)](#citig_rocket)
 
 <p align="center">
-  <img src="images/stitched_video_framerate_hq.gif" alt="Full Width GIF" width="100%" />
+  <img src="stitched_video_framerate_hq.gif" alt="Full Width GIF" width="100%" />
 </p>
