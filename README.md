@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[`Shaofei Cai`](https://phython96.github.io/) | [`Zhancun Mu`](https://zhancunmu.owlstown.net/) | [`Anji Liu`](https://liuanji.github.io/) | [`Yitao Liang`](https://scholar.google.com/citations?user=KVzR1XEAAAAJ&hl=zh-CN&oi=ao)
+[`Shaofei Cai*`](https://phython96.github.io/) | [`Zhancun Mu*`](https://zhancunmu.owlstown.net/) | [`Haiwen Xia`] | [`Bowei Zhang`] | [`Anji Liu`](https://liuanji.github.io/) | [`Yitao Liang`](https://scholar.google.com/citations?user=KVzR1XEAAAAJ&hl=zh-CN&oi=ao)
 
 All authors are affiliated with Team **[`CraftJarvis`](https://craftjarvis.github.io/)**. 
 
