@@ -10,6 +10,7 @@ All authors are affiliated with Team **[`CraftJarvis`](https://craftjarvis.githu
 [![Paper](https://img.shields.io/badge/Paper-arXiv%3A2503.02505-red)](https://arxiv.org/abs/2507.23698)
 [![HuggingFace](https://img.shields.io/badge/HuggingFace-Paper-yellow)]()
 [![BibTeX](https://img.shields.io/badge/BibTeX-Citation-blueviolet)](#citig_rocket)
+<a href="https://github.com/CraftJarvis/MineStudio"><img src="https://visitor-badge.laobi.icu/badge?page_id=ROCKET-3"/></a>
 
 <p align="center">
   <img src="stitched_video_framerate_hq.gif" alt="Full Width GIF" width="100%" />
