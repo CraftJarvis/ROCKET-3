@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[`Shaofei Cai*`](https://phython96.github.io/) | [`Zhancun Mu*`](https://zhancunmu.owlstown.net/) | [`Haiwen Xia`] | [`Bowei Zhang`] | [`Anji Liu`](https://liuanji.github.io/) | [`Yitao Liang`](https://scholar.google.com/citations?user=KVzR1XEAAAAJ&hl=zh-CN&oi=ao)
+[`Shaofei Cai*`](https://phython96.github.io/) | [`Zhancun Mu*`](https://muzhancun.github.io) | [`Haiwen Xia`] | [`Bowei Zhang`] | [`Anji Liu`](https://liuanji.github.io/) | [`Yitao Liang`](https://scholar.google.com/citations?user=KVzR1XEAAAAJ&hl=zh-CN&oi=ao)
 
 All authors are affiliated with Team **[`CraftJarvis`](https://craftjarvis.github.io/)**. 
 
@@ -16,5 +16,5 @@ All authors are affiliated with Team **[`CraftJarvis`](https://craftjarvis.githu
 </p>
 
 <p align="center">
-  <h3> Codes will be realeased in one month. </h3>
+  <h3> Codes will be released in one month. </h3>
 </p>
