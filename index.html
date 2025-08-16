@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>ROCKET-3: Scalable Multi-Task Reinforcement Learning for Generalizable Spatial Intelligence in Visuomotor Agents</title>
+        <link rel="icon" type="image/x-icon" href="/static/img/icons/rocket.ico">
+
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <!-- Open Graph -->
+        <meta property="og:url" content="https://craftjarvis.github.io/ROCKET-3/" />
+        <meta property="og:image" content="https://craftjarvis.github.io/ROCKET-3/static/img/preview.png" />
+        <meta property="og:title" content="ROCKET-3: Scalable Multi-Task Reinforcement Learning for Generalizable Spatial Intelligence in Visuomotor Agents" />
+        <meta property="og:description" content="ROCKET-3 demonstrates that RL-finetuned visuomotor agents in Minecraft can achieve zero-shot generalization to unseen worlds, significantly advancing spatial reasoning." />
+
+        <!-- Twitter -->
+        <meta name="twitter:url" content="https://craftjarvis.github.io/ROCKET-3/" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://craftjarvis.github.io/ROCKET-3/static/img/preview.png" />
+        <meta name="twitter:title" content="ROCKET-3: Scalable Multi-Task Reinforcement Learning for Generalizable Spatial Intelligence in Visuomotor Agents" />
+        <meta name="twitter:description" content="ROCKET-3 demonstrates that RL-finetuned visuomotor agents in Minecraft can achieve zero-shot generalization to unseen worlds, significantly advancing spatial reasoning." />
+
+        <script src="./static/js/distill_template.v2.js"></script>
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+        <script src="https://d3js.org/d3-collection.v1.min.js"></script>
+        <script src="https://rawgit.com/nstrayer/slid3r/master/dist/slid3r.js"></script>
+
+        <script defer="" src="./static/js/hider.js"></script>
+        <script src="./static/js/image_interact.js"></script>
+        <script src="./static/js/switch_videos.js"></script>
+
+        <link rel="stylesheet" href="./static/css/style.css">
+        <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.css" integrity="sha384-yFRtMMDnQtDRO8rLpMIKrtPCD5jdktao2TV19YiZYWMDkUR5GQZR/NOVTdquEx1j" crossorigin="anonymous">
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.js" integrity="sha384-9Nhn55MVVN0/4OFx7EE5kpFBPsEMZxKTCnA+4fqDmg12eCTqGi6+BB2LjY8brQxJ" crossorigin="anonymous"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/contrib/auto-render.min.js" integrity="sha384-kWPLUVMOks5AQFrykwIup5lo0m3iMkkHrD0uJ4H5cjeGihAutqP0yW0J6dpFiVkI" crossorigin="anonymous"
+            onload="renderMathInElement(document.body);"></script>
+        <script defer src="./static/js/fontawesome.all.min.js"></script>
+
+
+        <!-- medium zoom https://github.com/francoischalifour/medium-zoom -->
+        <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>  <!-- jquery -->
+        <script defer src="./static/js/medium-zoom.min.js"></script>
+        <script defer src="./static/js/zoom.js"></script>
+
+        <style>
+            .data-table {
+                table-layout: fixed;
+                width: 100%;
+            }
+            .data-table td, .data-table th {
+                white-space: normal; /* Allow text to wrap */
+                word-wrap: break-word; /* Break long words */
+                text-align: left; /* Align text to the left */
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header-wrapper">
+            <div class="header-container" id="header-container">
+                <div class="header-content">
+                    <h2 style="margin-top: 0px"><i>Scalable Multi-Task Reinforcement Learning for Generalizable Spatial Intelligence in Visuomotor Agents</i></h2>
+                        <p>
+                            We demonstrate that Reinforcement Learning (RL) finetuned visuomotor agents in Minecraft can achieve zero-shot generalization to unseen worlds. ROCKET-3 is built upon three key pillars:
+                        </p>
+
+                        <div class="icon-container">
+                            <div class="icon-item">
+                                <img src="./static/img/icons/data.svg" alt="Task Synthesis Icon">
+                                <div><strong>Large-Scale Task Synthesis</strong>: We propose an innovative method for large-scale, automated synthesis of over 100,000 Minecraft training tasks.</div>
+                            </div>
+                            <div class="icon-item">
+                                <img src="./static/img/icons/connector.svg" alt="RL Framework Icon">
+                                <div><strong>Efficient Distributed RL Framework</strong>: We develop an efficient distributed RL framework to ensure stable training of long-sequence policies in complex environments.</div>
+                            </div>
+                            <div class="icon-item">
+                                <img src="./static/img/icons/eval.svg" alt="Generalization Icon">
+                                <div><strong>Powerful Generalization</strong>: We empirically show a 4x increase in interaction success rates and compelling zero-shot generalization of spatial reasoning in diverse, unseen environments.</div>
+                            </div>
+                        </div>
+
+                    <div class="button-container">
+                        <!-- replace arxiv -->
+                        <a href="https://arxiv.org/abs/2507.23698" class="button paper-link" target="_blank">
+                            <span class="icon is-small">
+                                <i class="ai ai-arxiv"></i>
+                            </span>
+                            arXiv
+                        </a>
+                        <!-- replace pdf -->
+                        <a href="https://arxiv.org/pdf/2507.23698" class="button paper-link" target="_blank">
+                            <span class="icon is-small">
+                                <i class="fas fa-file-pdf"></i>
+                            </span>
+                            <span>pdf</span>
+                        </a>
+                        <!-- replace image -->
+                        <a href="https://github.com/CraftJarvis/ROCKET-3" class="button" target="_blank">
+                            <span class="icon is-small">
+                                <i class="fab fa-github"></i>
+                            </span>
+                            <span>Code</span>
+                        </a>
+                        <a href="https://huggingface.co/papers/2507.23698" class="button" target="_blank">
+                            <span class="icon is-small">
+                                <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" alt="Hugging Face logo" style="height: 1em;">
+                            </span>
+                            <span>Huggingface</span>
+                        </a>
+                    </div>
+                </div>
+                <div>
+                    <img draggable="false" src="static/img/paper_figures/teaser.png" alt="Teaser Image" class="teaser-image" style="width:100%;max-width:700px;display:block;margin:0 auto;">
+                </div>
+            </div>
+        </div>
+    <d-article>
+        <div class="byline">
+            <div class="byline-container">
+                <p>
+                    <a href="https://phython96.github.io/" class="author-link" target="_blank">Shaofei Cai<sup>*,1</sup></a> &emsp;
+                    <a href="https://muzhancun.github.io/" class="author-link" target="_blank">Zhancun Mu<sup>*,1</sup></a> &emsp;
+                    <a href="https://github.com/Haiwen-Xia" class="author-link" target="_blank">Haiwen Xia<sup>1</sup></a> &emsp;
+                    <a href="#" class="author-link" target="_blank">Bowei Zhang<sup>1</sup></a> &emsp;
+                    <br>
+                    <a href="#" class="author-link" target="_blank">Anji Liu<sup>2</sup></a> &emsp;
+                    <a href="#" class="author-link" target="_blank">Yitao Liang<sup>1</sup></a>
+                </p>
+                <p style="text-align: center;">
+                    <span class="affiliation-link"><sup>1</sup>Institute for Artificial Intelligence, Peking University</span>&emsp;
+                    <span class="affiliation-link"><sup>2</sup>School of Computing, National University of Singapore</span>
+                </p>
+                <p style="text-align: center; margin-bottom: 0;">
+                    <span class="author-note"><sup>*</sup>Equal contribution</span>
+                </p>
+            </div>
+        </div>
+
+
+        <p class="text abstract">
+            While Reinforcement Learning (RL) has achieved remarkable success in language modeling, its triumph hasn't yet fully translated to visuomotor agents. A primary challenge in RL models is their tendency to overfit specific tasks or environments, thereby hindering the acquisition of generalizable behaviors across diverse settings. This paper provides a preliminary answer to this challenge by demonstrating that RL-finetuned visuomotor agents in Minecraft can achieve zero-shot generalization to unseen worlds.
+            Specifically, we explore RL's potential to enhance generalizable spatial reasoning and interaction capabilities in 3D worlds. To address challenges in multi-task RL representation, we analyze and establish cross-view goal specification as a unified multi-task goal space for visuomotor policies. Furthermore, to overcome the significant bottleneck of manual task design, we propose automated task synthesis within the highly customizable Minecraft environment for large-scale multi-task RL training, and we construct an efficient distributed RL framework to support this. Experimental results show RL significantly boosts interaction success rates by 4x and enables zero-shot generalization of spatial reasoning across diverse environments, including real-world settings. Our findings underscore the immense potential of RL training in 3D simulated environments, especially those amenable to large-scale task generation, for significantly advancing visuomotor agents' spatial reasoning.
+        </p>
+
+        <div class="icon-row">
+            <a href="#sec:task_space" class="icon-link">
+                <img src="static/img/icons/recipe.svg" alt="Task Synthesis Logo" class="icon">
+                Task Space<br>Design
+            </a>
+            <a href="#sec:sec:synthesis_method" class="icon-link">
+                <img src="static/img/icons/data.svg" alt="Task Synthesis Logo" class="icon">
+                Task<br>Synthesis
+            </a>
+            <a href="#sec:framework" class="icon-link">
+                <img src="static/img/icons/connector.svg" alt="RL Framework Logo" class="icon">
+                RL<br>Framework
+            </a>
+            <a href="#sec:experiments" class="icon-link">
+                <img src="static/img/icons/eval.svg" alt="Experiments Logo" class="icon">
+                Experiments<br>& Results
+            </a>
+        </div>
+
+        <p class="click-hint" style="width: 85%;">
+            <img src="static/img/icons/click.gif" style="width: 1.5rem">
+            <strong>Click to jump to each section.</strong>
+        </p>
+
+
+        <p class="text abstract">
+            To this end, ROCKET-3 not only achieves state-of-the-art performance, but also serves as a comprehensive, open cookbook for training generalizable visuomotor agents.
+            We provide <a href="https://github.com/CraftJarvis/ROCKET-3" target="_blank">code</a>,
+            and detailed training and evaluation recipes. We hope our release will inspire and accelerate advancements in visuomotor agents and spatial intelligence.
+        </p>
+    <!-- </d-article>
+    <d-article> -->
+        <div class="video-gallery-container">
+            <div class="video-player">
+                <video id="main-video" controls preload="metadata" poster="static/img/paper_figures/minecraft_demos.png">
+                    <source src="videos/demo_Minecraft_easy_1.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="video-thumbnails-wrapper">
+                <div class="video-thumbnails">
+                    <div class="thumbnail-item active" onclick="changeVideo('videos/demo_Minecraft_easy_1.mp4', 'static/img/paper_figures/minecraft_demos.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_easy_1.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Easy (1)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_easy_2.mp4', 'static/img/paper_figures/minecraft_demos.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_easy_2.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Easy (2)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_easy_3.mp4', 'static/img/paper_figures/minecraft_demos.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_easy_3.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Easy (3)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_easy_4.mp4', 'static/img/paper_figures/minecraft_demos.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_easy_4.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Easy (4)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_easy_5.mp4', 'static/img/paper_figures/minecraft_demos.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_easy_5.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Easy (5)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_easy_6.mp4', 'static/img/paper_figures/minecraft_demos.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_easy_6.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Easy (6)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_easy_7.mp4', 'static/img/paper_figures/minecraft_demos.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_easy_7.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Easy (7)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_easy_8.mp4', 'static/img/paper_figures/minecraft_demos.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_easy_8.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Easy (8)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_easy_9.mp4', 'static/img/paper_figures/minecraft_demos.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_easy_9.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Easy (9)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_medium_1.mp4', 'static/img/paper_figures/goal_comparison.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_medium_1.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Medium (1)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_hard_1.mp4', 'static/img/paper_figures/goal_comparison.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_hard_1.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Hard (1)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_hard_2.mp4', 'static/img/paper_figures/goal_comparison.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_hard_2.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Hard (2)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_hard_3.mp4', 'static/img/paper_figures/goal_comparison.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_hard_3.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Hard (3)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_Minecraft_hunt.mp4', 'static/img/paper_figures/goal_comparison.png', this)">
+                        <video preload="metadata"><source src="videos/demo_Minecraft_hunt.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Minecraft Hunt</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_DMlab_1.mp4', 'static/img/paper_figures/zero_shot_envs.png', this)">
+                        <video preload="metadata"><source src="videos/demo_DMlab_1.mp4#t=0.5" type="video/mp4"></video>
+                        <span>DMLab (1)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_DMlab_2.mp4', 'static/img/paper_figures/zero_shot_envs.png', this)">
+                        <video preload="metadata"><source src="videos/demo_DMlab_2.mp4#t=0.5" type="video/mp4"></video>
+                        <span>DMLab (2)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_unreal.mp4', 'static/img/paper_figures/car_exp.png', this)">
+                        <video preload="metadata"><source src="videos/demo_unreal.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Unreal</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_real_world_ball_complex_1.mp4', 'static/img/paper_figures/distance.png', this)">
+                        <video preload="metadata"><source src="videos/demo_real_world_ball_complex_1.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Real World Ball (1)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_real_world_ball_complex_2.mp4', 'static/img/paper_figures/distance.png', this)">
+                        <video preload="metadata"><source src="videos/demo_real_world_ball_complex_2.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Real World Ball (2)</span>
+                    </div>
+                    <div class="thumbnail-item" onclick="changeVideo('videos/demo_real_world_trash.mp4', 'static/img/paper_figures/distance.png', this)">
+                        <video preload="metadata"><source src="videos/demo_real_world_trash.mp4#t=0.5" type="video/mp4"></video>
+                        <span>Real World Trash</span>
+                    </div>
+                </div>
+            </div>
+            <div class="gallery-title"><i>Video Gallery</i></div>
+        </div>
+
+        <hr>
+
+        <div id='sec:task_synthesis' class="vision-block">
+
+            <div id="sec:task_space" class="sub-section">
+                <h1 class="text">Task Space for Generalizable RL</h1>
+
+                    <p class="text">
+                        In traditional multi-task RL, a visuomotor agent learns to master a small set of \( k \) predefined tasks. The task representation in this paradigm is often a simple identifier (e.g., a one-hot vector), which lacks the semantic structure required for meaningful knowledge transfer, thus hindering generalization. Our objective is more ambitious: to enable a policy to generalize from \( k \) training tasks to \( n \gg k \) novel tasks, or even to entirely new 3D environments. Achieving this leap requires a unified task space that can seamlessly bridge training and generalization. We argue that an ideal task space must inherently satisfy four properties: Openness, Unambiguity, Scalability, and Curriculum.
+                    </p>
+                    <p class="text">
+                        We adopt Cross-View Goal Specification (CVGS) as our goal space because it naturally facilitates cross-domain generalization. The core capabilities it requires, reasoning about visual views and spatial information within the same domain, are inherently suited for this. Even if the agent can't directly see the target object, the landmark shared across the views can still offer crucial guiding information.
+                    </p>
+
+                    <div id="tab:task_properties" style="display: flex; flex-direction: column; align-items: center;">
+                        <div class="table-container" style="width: 140%;">
+                            <table class="data-table" style="word-break: break-word;">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 15%;">Property</th>
+                                        <th style="width: 85%;">Key Characteristics and Purpose</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Openness</strong></td>
+                                        <td>
+                                            Refers to the diversity and infinitude of the task space. It enables agents to continuously encounter novel visual configurations, object arrangements, or interaction scenarios, preventing rote memorization. This ensures agents develop robust and generalizable visuomotor policies capable of handling unseen real-world complexities.
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Unambiguity</strong></td>
+                                        <td>
+                                            Ensures that each task instance has clear, well-defined metrics and verifiable success criteria. For visuomotor agents, this means the goal state or action execution must be precisely measurable. Such clarity is vital for expert demonstrations in imitation learning (IL) and for designing effective reward signals during reinforcement learning (RL) fine-tuning.
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Scalability</strong></td>
+                                        <td>
+                                            Emphasizes that the task space must facilitate the automated and large-scale generation of both demonstration data for IL pre-training and expanded task sets for RL fine-tuning. Crucially, reward functions for these tasks must be easily and efficiently designable, or verifiable without extensive human intervention.
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Curriculum</strong></td>
+                                        <td>
+                                            A task space with curriculum properties provides a smooth transition in difficulty, offering a progressive learning path from simple to complex. It contains a spectrum where agents gradually master basic skills, with simpler tasks serving as necessary building blocks for more intricate ones, thus facilitating knowledge transfer.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <figcaption style="text-align: center; width: 100%;">
+                        <strong>Table 1:</strong> Key Properties of Effective Task Spaces for Embodied Agents.
+                    </figcaption>
+            </div>
+            <div id="sec:synthesis_method" class="sub-section">
+                <h1 class="text">Large-Scale Cross-View Task Synthesis</h1>
+                <p class="text">
+                    To explore whether RL can enhance spatial reasoning and enable transfer to other 3D environments, we designed an automated task synthesis method based on the Minecraft environment. We first randomly sample a spawn location \(p_0\) and generate interactive objects nearby. Subsequently, we sample a distance \(d\) (which directly influences task difficulty), teleport the player to that distance, and adjust the camera to obtain a novel goal view \(O_g\).
+                </p>
+                <p class="text">
+                    By accessing voxel information, we select a target object and get its <em>bottom-center coordinate</em> \(G=(G_x, G_y, G_z)\). Combined with the player's <em>eye center coordinate</em> \(U=(U_x, U_y, U_z)\), <em>yaw</em> \(\theta_y\), and <em>pitch</em> \(\theta_p\), we construct a rotation matrix \(R_M\) to represent the target in the camera coordinate system as \(C = R_M(G - U)\).
+                </p>
+                <p class="text">
+                    Next, using the screen dimensions, field of view, and perspective projection, we calculate the <em>normalized device coordinates (NDC)</em> and convert them to <em>pixel coordinates</em>. Since voxels are imprecise, we use the <em>Segment Anything Model (SAM)</em> with points sampled from the voxel cube to extract the target's pixel mask \(M_g\). Finally, we use the `spreadplayers` command to set the starting position and initial view \(O_1\). This method allows us to generate over 100,000 tasks of varying difficulty for large-scale RL training.
+                </p>
+            </div>
+        </div>
+
+        <div id='sec:framework' class="connector-block">
+
+            <h1 class="text">Foundation-to-Finesse Learning Pipeline</h1>
+            <p class="text">
+                Our approach follows a "Foundation-to-Finesse" learning pipeline. First, we use Imitation Learning (IL) on large-scale expert trajectories to build a foundational policy with general world knowledge. Then, Reinforcement Learning (RL) is used to refine and enhance the agent's explicit reasoning and interaction capabilities through trial-and-error in the environment.
+            </p>
+            <h2 class="text">Task Formulation</h2>
+            <p class="text">
+                We define a task instance \(\mathcal{T}\) as \(\mathcal{T} = \langle O_1, O_g, M_g, E \rangle\), where \(O_1\) is the initial agent view, \(O_g\) is the goal observation with a segmentation mask \(M_g\), and \(E\) is the interaction event (e.g., <em>break item</em>, <em>use item</em>). The policy \(\pi_\theta(A_t | O_{1:t}, \mathcal{T})\) must learn a cross-view alignment to understand the spatial relationship between its own view and the goal.
+            </p>
+            <h2 class="text">Pre-Training and Post-Training</h2>
+            <p class="text">
+                In the pre-training stage, we use Imitation Learning to maximize the likelihood of expert actions and auxiliary predictions (e.g., target visibility and centroid). 
+                Details of the pre-training process can be found in our paper <d-cite key="cai2025rocket"></d-cite>.
+                <br>
+                For post-training, we use Reinforcement Learning to fine-tune the policy. We employ a PPO-based algorithm with a KL divergence constraint against the pre-trained policy \(\pi_{\mathrm{ref}}\) to ensure stable learning while enhancing performance.
+                This process refines the agent's skills without compromising the robust spatial representations learned during pre-training.
+            </p>
+            <h2 class="text">Efficient Distributed RL Framework</h2>
+            <d-figure id="fig-storage-comparison">
+                <figure>
+                    <img data-zoomable="" draggable="false" src="static/img/paper_figures/storage_pipeline.png"
+                        alt="Trajectory Storage Comparison">
+                    <figcaption>
+                        <strong>Figure 1:</strong> To support long-sequence training for our Transformer-based policy, we use a
+                        memory-efficient, fragment-based storage method, which drastically reduces memory overhead compared to
+                        traditional transition-based storage.
+                    </figcaption>
+                </figure>
+            </d-figure>
+            <p class="text">
+                To handle the engineering challenges of large-scale RL in complex environments like Minecraft, we developed an efficient distributed RL framework. It features asynchronous data collection, optimized data transfer using a shared NAS to reduce network bandwidth, and a memory-efficient fragment-based storage method to support training on long-sequence data, which is crucial for our Transformer-based policies. Our framework can run 72 Minecraft instances in parallel, achieving a collection speed of about 1000 FPS.
+            </p>
+        </div>
+
+            <div id="sec:experiments" class="data-block">
+            <h1 class="text">Experiments and Results</h1>
+            <h2 class="text">RL Post-Training in Minecraft</h2>
+            <p class="text">
+                We conduct post-training on about 100,000 sampled tasks within Minecraft. These tasks encompass various interaction types, including <em>Approach</em>, <em>Break</em>, <em>Interact</em>, and <em>Hunt</em> (subdivided into <em>Melee Hunt</em> and <em>Archery</em>). To facilitate curriculum learning, we implement difficulty levels based on the distance between the agent's starting position and the target. This large-scale training led to several key discoveries:
+            </p>
+
+            <d-figure id="fig-exp-results">
+                <figure>
+                    <img data-zoomable="" draggable="false" src="static/img/paper_figures/exp.png" alt="Experimental Results">
+                    <figcaption>
+                        <strong>Figure 2:</strong> RL Post-Training Boosts Generalizable Spatial Reasoning and Open-World Interaction Capabilities.
+                        (a) RL training curves show a 4x performance leap and the importance of KL-divergence for stability.
+                        (c) Mixed-difficulty curriculum accelerates learning compared to training on hard tasks only.
+                        (d) Our agent is the first to achieve successful multi-task RL in challenging Minecraft, outperforming SOTA baselines.
+                        (f, g) The policy shows effective zero-shot generalization to DMLab, Unreal, and a real-world robot.
+                    </figcaption>
+                </figure>
+            </d-figure>
+
+            <div class="subsection">
+                <h3 class="text">Discoveries from RL Post-Training</h3>
+                <p class="text">
+                    <ul>
+                        <li><strong>4x Performance Leap:</strong> The average success rate across all interaction types increased from 7% to 28%. For the difficult "Archery" task, the rate surged from <1% to 28%, indicating that RL can unlock rare capabilities from pre-training.</li>
+                        <li><strong>Stable Training with KL-Constraint:</strong> Using a KL divergence constraint with respect to the pre-trained policy was crucial for stable learning and avoiding performance collapse. Policies without pre-training failed in multi-task RL, highlighting Minecraft's complexity.</li>
+                        <li><strong>Language-Based RL's Bottleneck:</strong> Language-based models like STEVE-1 struggled, achieving near-zero performance. This highlights that natural language is insufficient for spatial reasoning with distant or occluded objects, whereas our cross-view approach provides effective guidance.</li>
+                        <li><strong>Mixed-Difficulty Curriculum:</strong> A mixed-difficulty curriculum (training on easy, medium, and hard tasks simultaneously) significantly accelerated the learning of complex skills compared to training on hard tasks alone, leading to faster convergence and higher performance.</li>
+                        <li><strong>Robustness of Reasoning:</strong> Auxiliary prediction heads for object centroid and visibility retained their performance post-RL without explicit training, indicating the robustness of the learned spatial representations and preventing overfitting.</li>
+                    </ul>
+                </p>
+            </div>            <div class="subsection">
+                <h3 class="text">Generalization to Unseen Worlds</h3>
+                <p class="text">
+                    To validate the generality of our method, we transferred the RL-enhanced policy to unseen 3D worlds: DMLab, an Unreal Engine environment, and a real-world robot car. These diverse environments share a common abstract action space (omnidirectional movement, camera control, and interaction), allowing for efficient policy transfer with simple mapping.
+                </p>
+                <p class="text">
+                    Our experiments reveal a stark contrast in performance. The pre-trained policy, while possessing foundational knowledge from its ViT backbone, showed weak generalization. It only succeeded in tasks with minimal differences between the agent's initial view and the goal view. In contrast, the RL-enhanced policy demonstrated significantly improved spatial reasoning. It successfully handled challenging scenarios, such as navigating from a first-person view when the goal was specified from a bird's-eye perspective with the target object occluded. Notably, in the real-world ball-finding task, RL boosted the success rate by up to <strong>41%</strong>.
+                </p>
+                <d-figure id="fig-zeroshot-gallery">
+                    <figure style="max-width: 500px; margin: 0 auto;"></figure>
+                        <img data-zoomable="" draggable="false" src="static/img/paper_figures/zero_shot_envs.png" alt="Zero-shot Generalization Examples" style="width:100%; height:auto; max-width:100%;">
+                        <figcaption>
+                            <strong>Figure 4:</strong> Zero-shot generalization to unseen environments. The agent successfully transfers its spatial reasoning skills to DMLab, an Unreal Engine simulation, and a real-world robot, performing tasks like fruit collection, rescue, and ball finding.
+                        </figcaption>
+                    </figure>
+                </d-figure>
+                <p class="text">
+                    This compellingly demonstrates that the spatial intelligence honed in Minecraft can be generalized to novel environments with different visual textures and dynamics. However, we also observed limitations. The agent sometimes failed in the real world on medium-to-long-range approach tasks or by colliding with obstacles. This indicates that a "sim-to-real" gap persists, likely due to visual texture differences, underscoring the need for scaling up training with more diverse simulated worlds.
+                </p>
+            </div>
+        </div>
+
+        <div id='sota' class="sota-block">
+            <h1 class="text">Conclusion</h1>
+            <p class="text">
+                This work validates that reinforcement learning, when built upon a solid foundation from imitation learning, can significantly boost the cross-view spatial reasoning and interaction skills of visuomotor agents. We demonstrated that these enhanced capabilities, trained at scale using an automated task synthesis pipeline and an efficient distributed RL framework in Minecraft, successfully generalize to a variety of unseen 3D environments, including the real world. Our findings highlight the immense potential of large-scale RL in simulated worlds for advancing generalizable spatial intelligence in visuomotor agents. Future work will explore unifying RL training for 3D worlds with more diverse action spaces.
+            </p>
+        </div>
+    </d-article>
+    <d-appendix>
+        <h3>BibTeX</h3>
+        <p class="bibtex">
+            @misc{cai2025scalable,<br>
+            &nbsp;&nbsp;title = {Scalable Multi-Task Reinforcement Learning for Generalizable Spatial Intelligence in Visuomotor Agents},<br>
+            &nbsp;&nbsp;author = {Shaofei Cai and Zhancun Mu and Haiwen Xia and Bowei Zhang and Anji Liu and Yitao Liang},<br>
+            &nbsp;&nbsp;year = {2025},<br>
+            &nbsp;&nbsp;eprint = {2507.23698},<br>
+            &nbsp;&nbsp;archiveprefix = {arXiv},<br>
+            &nbsp;&nbsp;primaryclass = {cs.RO},<br>
+            &nbsp;&nbsp;url = {https://arxiv.org/abs/2507.23698}<br>
+            }
+        </p>
+    
+        <d-footnote-list></d-footnote-list>
+        <d-citation-list></d-citation-list>
+    </d-appendix>
+    <!-- bibliography will be inlined during Distill pipeline's pre-rendering -->
+    <d-bibliography src="bibliography.bib"></d-bibliography>
+    <script src="./static/js/nav-bar.js"></script>
+    </body>
+</html>
