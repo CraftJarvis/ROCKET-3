@@ -73,14 +73,25 @@ python run_online.py --checkpoint /path/to/rocket3.ckpt \
 
 The checkpoint is deliberately excluded from Git. Update
 `rocket3/training.py` for your compute resources and task setup before
-training. The command has not been verified end to end in a clean environment;
-the dependency versions and simulator setup still need a reproducibility pass.
+training. On Linux with Python 3.10, Java 8, Xvfb and CUDA, a clean install of
+`requirements.txt` loaded the checkpoint, completed a Minecraft reset and two
+policy-driven steps, then completed one reduced MineStudio PPO update using one
+rollout worker, one environment, one trainer worker and four-step fragments.
+The default multi-GPU, 4000-iteration configuration and training convergence
+have not been validated.
 
-To check a local checkpoint on a CPU machine without starting Minecraft or Ray:
+To check a local checkpoint without starting Minecraft or Ray:
 
 ```bash
 python smoke_test.py --checkpoint /path/to/rocket3.ckpt
+# On a CUDA machine:
+python smoke_test.py --checkpoint /path/to/rocket3.ckpt --device cuda
 ```
+
+MineStudio 1.1.6 pins OpenCV 4.8.0.74. PyPI has [withdrawn that build and
+published a libwebp advisory](https://pypi.org/project/opencv-python-headless/4.8.0.74/);
+updating MineStudio's dependency declaration is still needed for a clean
+upgrade to a fixed OpenCV release.
 
 ## Development
 

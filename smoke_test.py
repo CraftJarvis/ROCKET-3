@@ -1,4 +1,4 @@
-"""Check a ROCKET-3 checkpoint with one synthetic CPU inference step.
+"""Check a ROCKET-3 checkpoint with one synthetic inference step.
 
 This verifies policy loading and the paper's action/auxiliary output interface
 without starting the Minecraft simulator or distributed PPO training.
@@ -15,6 +15,9 @@ from rocket3.policy import BINARY_ACTION_KEYS, load_rocket3_policy
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", required=True, type=Path)
+    parser.add_argument(
+        "--device", default="cpu", help="Inference device (default: cpu)."
+    )
     args = parser.parse_args(argv)
 
     checkpoint = args.checkpoint.expanduser().resolve()
@@ -22,7 +25,8 @@ def main(argv=None):
         raise FileNotFoundError(f"Checkpoint does not exist: {checkpoint}")
 
     torch.set_num_threads(min(4, torch.get_num_threads()))
-    policy = load_rocket3_policy(str(checkpoint)).eval()
+    device = torch.device(args.device)
+    policy = load_rocket3_policy(str(checkpoint)).to(device).eval()
     # O_t, O_g and M_g are all 224 x 224 in the model (paper Appendix D).
     observation = {
         "image": torch.zeros((1, 1, 224, 224, 3), dtype=torch.uint8),
@@ -41,9 +45,17 @@ def main(argv=None):
         observation["env_prev_action"] = action
         observation["prev_action_dropout"] = torch.ones((1, 1))
 
+    def move_tensors(value):
+        if isinstance(value, dict):
+            return {key: move_tensors(item) for key, item in value.items()}
+        return value.to(device)
+
+    observation = move_tensors(observation)
     with torch.inference_mode():
         latents, _ = policy(observation)
         sampled_action = policy.pi_head.sample(latents["pi_logits"], deterministic=True)
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
 
     expected_shapes = {
         "vpred": (1, 1, 1),
@@ -58,7 +70,7 @@ def main(argv=None):
     print(
         f"Checkpoint OK: {checkpoint.name}; "
         f"view tokens={policy.num_view_tokens}; "
-        f"previous action={policy.use_prev_action}"
+        f"previous action={policy.use_prev_action}; device={device}"
     )
 
 

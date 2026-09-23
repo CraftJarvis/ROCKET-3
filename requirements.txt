@@ -1,11 +1,17 @@
 einops
 huggingface-hub
-minestudio
+# ROCKET-3 uses MineStudio's 1.1.x policy, simulator and PPO interfaces.
+minestudio==1.1.6
 numpy
 omegaconf
-opencv-python-headless
+# MineStudio 1.1.6 requires these exact OpenCV builds.
+opencv-python==4.8.0.74
+opencv-python-headless==4.8.0.74
 pillow
-ray[train]
-timm
+psutil
+# MineStudio's PPO path was validated with Ray Train 2.43.
+ray[train]==2.43.0
+# Newer timm rejects the model names stored in the released checkpoint.
+timm==1.0.20
 torch
 torchvision
