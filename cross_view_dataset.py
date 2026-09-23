@@ -43,6 +43,7 @@ def mask_to_bounding_box_batch(masks):
 
     # Combine the coordinates into a single array of shape (b, 4)
     bounding_boxes = np.stack((x_min, y_min, x_max, y_max), axis=1)
+    bounding_boxes[~rows.any(axis=1)] = 0.0
 
     return bounding_boxes
 

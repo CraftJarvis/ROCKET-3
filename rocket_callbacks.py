@@ -343,6 +343,8 @@ class RocketOnlineCallback(MinecraftCallback):
                     continue
 
                 hull = get_voxel_convex_hull(screen_corners)
+                if hull is None:
+                    continue
                 segmemtation = np.zeros((screen_height, screen_width), dtype=np.uint8)
                 cv2.fillPoly(segmemtation, [hull], color=(1))
 
@@ -410,8 +412,10 @@ class RocketOnlineCallback(MinecraftCallback):
             info["player_pos"]["y"],
             info["player_pos"]["z"],
         )
-        self.last_distance = self.compute_distance(
-            np.array([px, py, pz]), self.lucky_voxel["voxel"]
+        self.last_distance = (
+            self.compute_distance(np.array([px, py, pz]), self.lucky_voxel["voxel"])
+            if "voxel" in self.lucky_voxel
+            else 0.0
         )
         self.last_info = info.copy()
         obs = self.build_cross_view(obs)
