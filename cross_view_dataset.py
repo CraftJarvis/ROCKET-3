@@ -1,4 +1,10 @@
-"""Cross-view dataset adapter for ROCKET-3 policy pretraining."""
+"""MineStudio data adapter for cross-view imitation learning (paper Sec. 4).
+
+A sampled frame, preferably with a valid target mask, becomes the reference
+view (O_g, M_g) for each target segment. The sample supplies per-frame object
+labels for the auxiliary heads in paper Eq. 4. This is an adapter for existing
+trajectories, not the paper's Minecraft task-synthesis pipeline.
+"""
 
 import math
 import random
@@ -11,44 +17,37 @@ from minestudio.data.minecraft.callbacks import SegmentationDrawFrameCallback
 
 
 def mask_to_bounding_box_batch(masks):
-    """
-    Convert a batch of 2D binary masks to bounding boxes using numpy vectorized operations.
+    """Return normalized ``(x_min, y_min, x_max, y_max)`` for ``(B,H,W)`` masks.
 
-    Args:
-    - masks (np.ndarray): A numpy array of shape (b, 224, 224), where b is the batch size.
-
-    Returns:
-    - bounding_boxes (np.ndarray): A numpy array of shape (b, 4), where each row is a bounding box
-      (x_min, y_min, x_max, y_max).
+    An empty mask has the all-zero box used for an absent target.
     """
     n_rows = masks.shape[1]
     n_cols = masks.shape[2]
-    # Find which rows and columns contain any non-zero values (i.e., 1s)
+    # Reduce each mask to occupied rows and columns before finding extrema.
     rows = np.any(masks, axis=2)  # (b, 224)
     cols = np.any(masks, axis=1)  # (b, 224)
 
-    # Get the first and last row with non-zero values
     y_min = np.argmax(rows, axis=1)  # (b,)
     y_max = n_rows - np.argmax(np.flip(rows, axis=1), axis=1) - 1  # (b,)
 
-    # Get the first and last column with non-zero values
     x_min = np.argmax(cols, axis=1)  # (b,)
     x_max = n_cols - np.argmax(np.flip(cols, axis=1), axis=1) - 1  # (b,)
 
-    # Normalize to [0, 1]
+    # Coordinates are normalized independently by image width and height.
     x_min = x_min / n_cols
     x_max = x_max / n_cols
     y_min = y_min / n_rows
     y_max = y_max / n_rows
 
-    # Combine the coordinates into a single array of shape (b, 4)
     bounding_boxes = np.stack((x_min, y_min, x_max, y_max), axis=1)
+    # argmax on an empty mask would otherwise yield a spurious far edge.
     bounding_boxes[~rows.any(axis=1)] = 0.0
 
     return bounding_boxes
 
 
 class CrossViewDataset(RawDataset):
+    """Attach one sampled goal frame to each trajectory segment."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -60,6 +59,11 @@ class CrossViewDataset(RawDataset):
         max_retries: int = 3,
         event_constrain=None,
     ) -> Tuple[int, Dict]:
+        """Try reference frames in a segment; fall back to the last sampled one.
+
+        Paper Sec. 4 samples a frame with a valid target mask for O_g/M_g.
+        Real data can lack one, so the fallback is explicit here.
+        """
         candidate_choices = list(range(frame_range[0], frame_range[1] + 1))
         for i in range(max_retries):
             frame_id = random.choice(candidate_choices)
@@ -75,14 +79,14 @@ class CrossViewDataset(RawDataset):
         return frame_id, frame
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        """Build a temporal window with stable goal conditioning and labels."""
         assert idx < len(self), f"Index <{idx}> out of range <{len(self)}>"
         episode, relative_idx = self.locate_item(idx)
-        start = max(
-            0, relative_idx * self.win_len
-        )  # if start > 0 is the prequest for previous action
+        start = max(0, relative_idx * self.win_len)
         item = self.kernel_manager.read(episode, start, self.win_len, self.skip_frame)
 
-        # === apply the cross view for each frame === #
+        # The same event/frame range reuses one reference frame, keeping the
+        # goal fixed across its window rather than resampling at every step.
         cross_view = {
             "cross_view_image": [],
             "cross_view_obj_id": [],
@@ -95,6 +99,7 @@ class CrossViewDataset(RawDataset):
         for wid, frame_range in enumerate(item["segmentation"]["frame_range"]):
             frame_range_key = f"{frame_range[0]}_{frame_range[1]}"
             if frame_range[0] == -1:
+                # No target: use -1 event ID plus blank O_g/M_g sentinels.
                 cross_view["cross_view_image"].append(np.zeros_like(item["image"][wid]))
                 cross_view["cross_view_obj_id"].append(-1)
                 cross_view["cross_view_obj_mask"].append(
@@ -151,13 +156,14 @@ class CrossViewDataset(RawDataset):
             if not isinstance(cross_view[key][0], str):
                 cross_view[key] = np.stack(cross_view[key], axis=0)
         item["cross_view"] = cross_view
-        # === apply the cross view for each frame === #
 
+        # Preserve MineStudio's temporal validity mask under a stable key.
         for key in list(item.keys()):
             if key.endswith("mask"):
                 mask = item.pop(key)
         item["mask"] = mask
-        # item["point_dropout"] = (np.random.uniform(0, 1, item["mask"].size) > 0.9).astype(np.float32)
+        # A value of 1 keeps the previous action; 0 substitutes the learned
+        # dropout token. Only about a quarter of positions retain it.
         item["prev_action_dropout"] = (
             np.random.uniform(0, 1, item["mask"].size) > 0.75
         ).astype(np.float32)
@@ -175,6 +181,7 @@ class CrossViewDataset(RawDataset):
 
 
 class CrossViewDrawFrameCallback(SegmentationDrawFrameCallback):
+    """Stack the agent and annotated goal images for dataset inspection."""
 
     def draw_frames(
         self, frames: Union[np.ndarray, List], infos: Dict, sample_idx: int
@@ -208,6 +215,7 @@ class CrossViewDrawFrameCallback(SegmentationDrawFrameCallback):
 
 
 class CrossViewDataModule(RawDataModule):
+    """Use the cross-view adapter for both MineStudio data splits."""
 
     def setup(self, stage: Optional[str] = None):
         self.train_dataset = CrossViewDataset(split="train", **self.data_params)

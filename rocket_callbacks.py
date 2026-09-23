@@ -1,3 +1,11 @@
+"""Minecraft cross-view task callbacks inspired by paper Sec. 4 and App. A.
+
+This released callback projects voxel geometry into a coarse target mask and
+uses distance/mining reward shaping. The paper's full task-synthesis pipeline
+uses SAM2 segmentation and describes binary simulator outcome rewards; those
+components are not implemented in this file.
+"""
+
 import math
 import random
 import re
@@ -13,29 +21,21 @@ from minestudio.simulator.callbacks.callback import MinecraftCallback
 def voxel_to_screen_and_mask(
     voxel_pos, player_pos, pitch, yaw, screen_width=640, screen_height=360, fov_y=70
 ):
-    """
-    将 Minecraft 中一个体素位置转换为玩家视角下的屏幕中心坐标 + 屏幕上的轮廓 mask。
+    """Project a voxel center and cube corners into a goal camera image.
 
-    参数:
-        voxel_pos: (x, y, z) 体素底面中心点的世界坐标
-        player_pos: (x, y, z) 玩家脚下位置
-        pitch: 玩家 pitch 角（上下，单位为度）
-        yaw: 玩家 yaw 角（左右，单位为度）
-        screen_width: 屏幕宽度（像素）
-        screen_height: 屏幕高度（像素）
-        fov_y: 垂直视野角度（单位为度）
-
-    返回:
-        (u, v): 屏幕中心坐标（像素）
-        mask: 该 voxel 的投影轮廓，若不可见则为 None
+    Uses the camera geometry of paper Eqs. 5-8. ``voxel_pos`` is the cube's
+    bottom center in world coordinates; ``player_pos`` is at the player's feet.
+    Returns a pixel center (possibly ``None``) and visible projected corners;
+    both are ``None`` when no corner is visible. The corners are geometry for a
+    later coarse polygon mask, not a SAM mask.
     """
 
-    # 玩家眼睛位置
+    # Paper Eq. 5 uses the camera origin U rather than the player's feet.
     eye_height = 1.62
     px, py, pz = player_pos
     player_eye = np.array([px, py + eye_height, pz])
 
-    # 定义体素的 8 个顶点（单位立方体，底面中心为 voxel_pos）
+    # A unit cube supplies several projected points around the target.
     vx, vy, vz = voxel_pos
     corners = []
     for dx in [-0.5, 0.5]:
@@ -43,27 +43,25 @@ def voxel_to_screen_and_mask(
             for dz in [-0.5, 0.5]:
                 corners.append(np.array([vx + dx, vy + dy, vz + dz]))
 
-    # 角度转弧度
     pitch_rad = math.radians(pitch)
     yaw_rad = math.radians(yaw)
     cos_yaw, sin_yaw = math.cos(-yaw_rad), math.sin(-yaw_rad)
     cos_pitch, sin_pitch = math.cos(-pitch_rad), math.sin(-pitch_rad)
 
-    # 相机参数
+    # Paper Eq. 6 derives the horizontal FoV from the vertical FoV and aspect.
     fov_y_rad = math.radians(fov_y)
     aspect_ratio = screen_width / screen_height
     fov_x_rad = 2 * math.atan(math.tan(fov_y_rad / 2) * aspect_ratio)
 
-    # 投影函数
     def world_to_screen(point_world):
+        """Transform a world point to image pixels; discard points behind/outside."""
         rel = point_world - player_eye
 
-        # 绕 Y 轴（Yaw）
+        # Camera yaw, then pitch, before perspective division (Eqs. 5-8).
         x1 = cos_yaw * rel[0] - sin_yaw * rel[2]
         z1 = sin_yaw * rel[0] + cos_yaw * rel[2]
         y1 = rel[1]
 
-        # 绕 X 轴（Pitch）
         y2 = cos_pitch * y1 - sin_pitch * z1
         z2 = sin_pitch * y1 + cos_pitch * z1
         x2 = x1
@@ -82,15 +80,13 @@ def voxel_to_screen_and_mask(
             else None
         )
 
-    # 对每个角点投影
     screen_corners = [world_to_screen(corner) for corner in corners]
 
-    # 去除不可见点
+    # Off-screen/behind-camera corners cannot contribute to the polygon.
     screen_corners = [pt for pt in screen_corners if pt is not None]
     if len(screen_corners) == 0:
         return None, None
 
-    # 返回中心点和 mask（2D 多边形点集）
     center_screen = world_to_screen(np.array([vx, vy + 0.5, vz]))
     return center_screen, screen_corners
 
@@ -98,37 +94,36 @@ def voxel_to_screen_and_mask(
 def is_voxel_occluded(
     target_voxel, voxel_map: list, player_pos, pitch, yaw, max_distance=100, step=0.3
 ):
-    # 构建体素索引：{(x, y, z): type}，使用离散表示
+    """Approximate visibility by ray sampling through nearby simulator voxels.
+
+    Three points inside the target cube are checked. This is a geometry filter
+    for goal selection, not the pixel segmentation used by the paper's SAM2.
+    """
+    # Index block coordinates for repeated ray lookups.
     voxel_dict = {}
     for key, val in voxel_map:
         voxel_dict[(floor(key[0]), floor(key[1]), floor(key[2]))] = val
 
-    # 玩家眼睛位置
     eye_height = 1.62
     px, py, pz = player_pos
     origin = np.array([px, py + eye_height, pz])
-    # 目标体素范围（底面中心 → 体积）
-    # tx, ty, tz = floor(target_voxel[0]), floor(target_voxel[1]), floor(target_voxel[2])
-    tx, ty, tz = target_voxel  #! 是否进行离散化，需要提前计算；在这里表示物体底面中心
+    # target_voxel is the bottom center of a unit cube.
+    tx, ty, tz = target_voxel
     target_min = np.array([tx - 0.5, ty, tz - 0.5])
     target_max = np.array([tx + 0.5, ty + 1, tz + 0.5])
 
     for lam in [0.4, 0.5, 0.6]:
-        # for lam in [0.5]:
         target_center = target_min * (1 - lam) + target_max * lam
-        # 射线方向
         direction = target_center - origin
         distance = np.linalg.norm(direction)
         if distance > max_distance:
             return True
         direction /= distance
 
-        # 射线采样
+        # Missing cells are treated as air/grass by this local heuristic.
         steps = int(distance / step)
         for i in range(steps - 1, -1, -1):
             point = origin + direction * (i * step)
-            # 否则检查当前点所在体素
-            # vx, vy, vz = int(floor(point[0] + 0.5)), int(floor(point[1])), int(floor(point[2] + 0.5))
             vx, vy, vz = (
                 int(floor(point[0])),
                 int(floor(point[1])),
@@ -137,8 +132,8 @@ def is_voxel_occluded(
             if (vx, vy, vz) == (floor(tx), floor(ty), floor(tz)):
                 continue
             if voxel_dict.get((vx, vy, vz), "minecraft:grass") != "minecraft:grass":
-                return True  # 有遮挡体素
-    return False  # 没被遮挡
+                return True
+    return False
 
 
 def draw_voxel_wireframe(img, projected_points, color=(0, 255, 0), thickness=1):
@@ -177,37 +172,23 @@ def draw_voxel_wireframe(img, projected_points, color=(0, 255, 0), thickness=1):
 
 
 def get_voxel_convex_hull(screen_corners):
-    """
-    根据立方体的屏幕顶点投影，返回轮廓的凸包点集（顺时针）。
-
-    参数:
-        screen_corners: 长度为8的屏幕坐标点列表 [(u, v), ...]
-
-    返回:
-        hull_points: 凸包点集，按顺时针排列的 np.ndarray, 形状为 (N, 2)
-    """
-    # 过滤掉 None 或超出屏幕的点
+    """Build a coarse 2-D silhouette from visible projected cube corners."""
     valid_points = [pt for pt in screen_corners if pt is not None]
 
     if len(valid_points) < 3:
-        return None  # 无法形成凸包
+        return None
 
-    # 转换为 np 格式并 reshape
     pts = np.array(valid_points, dtype=np.int32).reshape(-1, 1, 2)
 
-    # 获取凸包
-    hull = cv2.convexHull(pts, returnPoints=True)  # shape (N,1,2)
+    hull = cv2.convexHull(pts, returnPoints=True)  # (N, 1, 2)
 
-    # reshape 为 (N,2)
     hull_points = hull.reshape(-1, 2)
 
     return hull_points
 
 
 def voxel_map_from_info(info):
-    """
-    从 info 中获取 voxel_map
-    """
+    """Convert simulator offsets for blocks/mobs to absolute world positions."""
     player_pos = np.array(
         [info["player_pos"]["x"], info["player_pos"]["y"], info["player_pos"]["z"]]
     )
@@ -240,6 +221,8 @@ def voxel_map_from_info(info):
 
 @dataclass
 class BlockConfig:
+    """Random block spawning limits relative to the reset location."""
+
     names: Union[str, List[str]]
     number: int
     options: int
@@ -249,6 +232,7 @@ class BlockConfig:
 
 
 class SpawnBlocks(MinecraftCallback):
+    """Create varied interaction targets when a Minecraft world resets."""
 
     def __init__(self, block_configs: List[BlockConfig]):
         self.block_configs = block_configs
@@ -274,19 +258,29 @@ class SpawnBlocks(MinecraftCallback):
 
 @dataclass
 class ResetConfig:
+    """Candidate goal cameras, voxel scan bounds and target type filter.
+
+    Each view is ``(dx, dy, dz, yaw, pitch)`` relative to the reset position.
+    """
+
     views: List[Tuple]
     voxel_range: List[float]
     re_pattern: str
     obj_id: int
-    # reward_configs: Dict[str, Any]
 
 
 class RocketOnlineCallback(MinecraftCallback):
+    """Generate one masked cross-view target and score its interaction.
+
+    This online example currently detects a target *block* disappearing. It is
+    narrower than the paper's Approach, Break, Interact and Hunt task mix.
+    """
 
     def __init__(self, reset_configs: List[ResetConfig]):
         self.reset_configs = reset_configs
 
     def after_reset(self, sim, obs, info):
+        """Capture candidate O_g views, choose a target, then restore O_1."""
         self.reset_config = random.choice(self.reset_configs)
         ox, oy, oz = (
             info["player_pos"]["x"],
@@ -298,9 +292,11 @@ class RocketOnlineCallback(MinecraftCallback):
         shuffled_views = self.reset_config.views.copy()
         random.shuffle(shuffled_views)
         for idx, (dx, dy, dz, yaw, pitch) in enumerate(shuffled_views):
+            # Use the first candidate camera with at least one visible target.
             if len(candidates) > 0:
                 break
             for _ in range(10):
+                # Let the simulator render/update the teleported camera view.
                 cmd = f"/tp @p {ox + dx} {oy + dy} {oz + dz} {yaw} {pitch}"
                 obs, reward, done, info = sim.env.execute_cmd(cmd)
                 action = sim.env.action_space.no_op()
@@ -321,7 +317,6 @@ class RocketOnlineCallback(MinecraftCallback):
             )
             voxel_map = voxel_map_from_info(info)
             screen_width, screen_height = 640, 360
-            # mask_image = info['pov'].copy()
             for key, string in voxel_map:
                 voxel = np.array(key)
                 if not re.match(self.reset_config.re_pattern, string):
@@ -345,6 +340,8 @@ class RocketOnlineCallback(MinecraftCallback):
                 hull = get_voxel_convex_hull(screen_corners)
                 if hull is None:
                     continue
+                # This polygon is a coarse voxel projection. The paper's
+                # Appendix A instead prompts SAM2 for a pixel-accurate M_g.
                 segmemtation = np.zeros((screen_height, screen_width), dtype=np.uint8)
                 cv2.fillPoly(segmemtation, [hull], color=(1))
 
@@ -370,21 +367,15 @@ class RocketOnlineCallback(MinecraftCallback):
                     }
                 )
 
-                # x, y =  (int(screen_coords[0]), int(screen_coords[1]))
-                # # draw_voxel_wireframe(mask_image, screen_corners, color=(255, 255, 255), thickness=1)
-                # hull = get_voxel_convex_hull(screen_corners)
-                # cv2.fillPoly(mask_image, [hull], color=(0, 255, 0))
-                # cv2.circle(mask_image, (x, y), 3, (255, 255, 0), -1)
-
-            # cross_view.append((info['pov'].copy(), mask_image)) #! save all cross-view images
-
         back_cmd = f"/tp @p {ox} {oy} {oz} 0 0"
         for i in range(5):
             obs, reward, done, info = sim.env.execute_cmd(back_cmd)
         obs, info = sim._wrap_obs_info(obs, info)
 
         if len(candidates) > 0:
-            self.lucky_voxel = random.choice(candidates)  #! 解决空列表的问题
+            self.lucky_voxel = random.choice(candidates)
+            # Draw an overlay for inspection; the policy receives the separate
+            # resized RGB image and binary mask saved in lucky_voxel.
             mask_image = self.lucky_voxel["image"]
             x, y = (
                 int(self.lucky_voxel["coords"][0]),
@@ -397,6 +388,7 @@ class RocketOnlineCallback(MinecraftCallback):
             info["reset_cross_view_list"] = cross_view_list
         else:
             print("初始化 cross-view image 为空")
+            # Keep the observation schema valid even if no goal was found.
             self.lucky_voxel = {
                 "rsz_image": np.zeros(
                     (sim.obs_size[1], sim.obs_size[0], 3), dtype=np.uint8
@@ -422,6 +414,7 @@ class RocketOnlineCallback(MinecraftCallback):
         return obs, info
 
     def build_cross_view(self, obs):
+        """Expose fixed O_g/M_g/event conditioning at every rollout step."""
         obs["cross_view"] = {
             "cross_view_image": self.lucky_voxel["rsz_image"].copy(),
             "cross_view_obj_id": self.lucky_voxel["obj_id"],
@@ -430,7 +423,8 @@ class RocketOnlineCallback(MinecraftCallback):
         return obs
 
     def before_step(self, sim, action):
-        action["voxels"] = [-7, 7, -7, 7, -7, 7]  # 破坏方块时，物体一定在很附近的地方
+        # Scan nearby voxels so after_step can verify target-block removal.
+        action["voxels"] = [-7, 7, -7, 7, -7, 7]
         return action
 
     def compute_distance(self, player_pos: np.ndarray, voxel_pos: np.ndarray):
@@ -438,11 +432,17 @@ class RocketOnlineCallback(MinecraftCallback):
         return distance
 
     def after_step(self, sim, obs, reward, terminated, truncated, info):
+        """Apply this example's shaped reward and terminal target check.
+
+        Unlike the paper's binary outcome reward (Appendix A), this callback
+        rewards progress toward a block, penalizes mining and gives +5 when
+        the chosen nearby block disappears.
+        """
         obs = self.build_cross_view(obs)
         if "view_id" not in self.lucky_voxel or self.lucky_voxel["done"]:
             return obs, reward, terminated, truncated, info
 
-        #! 1. add distance reward
+        # Dense distance progress, with a small per-step cost.
         px, py, pz = (
             info["player_pos"]["x"],
             info["player_pos"]["y"],
@@ -454,14 +454,14 @@ class RocketOnlineCallback(MinecraftCallback):
         reward += (self.last_distance - distance - 0.05) / 10
         self.last_distance = distance
 
-        #! 2. add breaking reward
+        # Penalize mined blocks, including accidental destruction.
         for k, v in info["mine_block"].items():
             if v - self.last_info["mine_block"].get(k, 0) > 0:
                 reward -= 0.5
         self.last_info = info.copy()
 
-        #! 3. add task completion reward
-        # 如果距离小于等于 5, 那么方块信息可以被获取到 info['voxels']，如果 xyz 相差均在 0.5 以内，则是目标方块
+        # Target absence counts as success only within the nearby voxel scan;
+        # beyond five blocks, an unobserved target must not count as removed.
         if distance > 5:
             return obs, reward, terminated, truncated, info
         find = False
@@ -472,7 +472,6 @@ class RocketOnlineCallback(MinecraftCallback):
             if np.all(np.abs(abs_voxel_pos - self.lucky_voxel["voxel"]) <= 0.5):
                 find = True
         if not find:
-            # 没找到意味着 voxel 造到破坏，任务完成
             reward += 5
             self.lucky_voxel["done"] = True
             terminated = True

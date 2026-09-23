@@ -1,4 +1,8 @@
-"""Check a ROCKET-3 checkpoint with one CPU inference step."""
+"""Check a ROCKET-3 checkpoint with one synthetic CPU inference step.
+
+This verifies policy loading and the paper's action/auxiliary output interface
+without starting the Minecraft simulator or distributed PPO training.
+"""
 
 import argparse
 from pathlib import Path
@@ -19,6 +23,7 @@ def main(argv=None):
 
     torch.set_num_threads(min(4, torch.get_num_threads()))
     policy = load_cross_view_rocket(str(checkpoint)).eval()
+    # O_t, O_g and M_g are all 224 x 224 in the model (paper Appendix D).
     observation = {
         "image": torch.zeros((1, 1, 224, 224, 3), dtype=torch.uint8),
         "cross_view": {

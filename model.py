@@ -1,4 +1,9 @@
-"""ROCKET-3 cross-view visuomotor policy."""
+"""ROCKET-3 policy for the cross-view goal in paper Sec. 4 and Appendix D.
+
+The vision and temporal backbone starts from the ROCKET-2 imitation-learning
+policy; ROCKET-3 post-training optimizes its action policy with RL. This module
+defines the policy, not the PPO objective implemented by MineStudio.
+"""
 
 from typing import Dict, List, Optional
 
@@ -38,6 +43,7 @@ BINARY_KEYS = [
 
 
 class ActionEmbeddingLayer(nn.Module):
+    """Embed the previous Minecraft action as one optional temporal token."""
 
     def __init__(self, hiddim: int):
         super().__init__()
@@ -47,6 +53,7 @@ class ActionEmbeddingLayer(nn.Module):
         )
 
     def forward(self, action: Dict) -> torch.Tensor:
+        # MineStudio spells hotbar keys with dots in observations (hotbar.1).
         x = self.camera_layer(action["camera"].float())
         for key in BINARY_KEYS:
             x += self.binary_layers[f"act_{key}"](action[key.replace("_", ".")])
@@ -54,6 +61,13 @@ class ActionEmbeddingLayer(nn.Module):
 
 
 class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
+    """Condition actions on the current view and a masked goal view.
+
+    Paper notation: ``image`` is O_t; the cross-view image/mask are O_g/M_g;
+    ``cross_view_obj_id`` encodes interaction event E. The output includes the
+    action policy plus the visibility and target-location auxiliary predictions
+    used during imitation learning (paper Eq. 4 and Appendix D).
+    """
 
     def __init__(
         self,
@@ -71,7 +85,8 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
         **kwargs,
     ):
         super().__init__(hiddim=hiddim, action_space=action_space)
-        # super().__init__(hiddim=hiddim, action_space=action_space, nucleus_prob=0.85)
+        # The DINO RGB encoder is frozen, while the mask encoder is trainable
+        # (paper Appendix D). A checkpoint already contains backbone weights.
         self.view_backbone = timm.create_model(
             view_backbone, pretrained=pretrained_backbone, features_only=True
         )
@@ -102,6 +117,8 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
         )
         self.updim_cross = nn.Conv2d(vision_dim, hiddim, kernel_size=1, bias=False)
         self.num_view_tokens = num_view_tokens
+        # Learned queries compress the current/goal patch tokens into a fixed
+        # number of view tokens before temporal reasoning.
         self.view_cls_tokens = nn.Parameter(
             torch.randn(1, self.num_view_tokens, hiddim) * 1e-3
         )
@@ -115,11 +132,12 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
             ),
             num_layers=num_layers,
         )
-        self.interaction = nn.Embedding(
-            10, hiddim
-        )  # denotes the number of interaction types
+        # Add one before lookup so -1 represents an absent goal/event.
+        self.interaction = nn.Embedding(10, hiddim)
         self.num_step_tokens = self.num_view_tokens + 1
 
+        # The auxiliary heads read the last view token. The action/value heads
+        # read the last token of each step, after the event/optional action.
         self.index_bias = -2
         self.use_prev_action = use_prev_action
         if self.use_prev_action:
@@ -149,44 +167,49 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
         )
         self.final_ln = nn.LayerNorm(hiddim)
 
-        self.aux_vis_head = nn.Linear(hiddim, 1 + 2 + 4)  # exist, point, bbox
-        # self.pre_aux_vis_head = nn.Linear(hiddim, 1+2+4) # exist, point, bbox
+        # Visibility logit, 2-D centroid and 4-D box. The paper reports that
+        # visibility/centroid remain useful after RL without auxiliary labels.
+        self.aux_vis_head = nn.Linear(hiddim, 1 + 2 + 4)
 
-        #! view backbone is frozen during training
         for param in self.view_backbone.parameters():
             param.requires_grad = False
 
     def encode_view_tokens(
         self, agent_view: torch.Tensor, cross_view: Dict
     ) -> torch.Tensor:
+        """Fuse RGB O_t, RGB O_g and binary M_g into ``(B, T, N, D)`` tokens.
+
+        The two ViT-B/16 RGB feature maps and ViT-tiny/16 mask feature map
+        each have a 14 x 14 patch grid for 224 x 224 input (Appendix D).
+        """
         b, t = agent_view.shape[:2]
 
-        # 1. encode observation with view_backbone
+        # Flatten batch/time for the shared, frozen RGB encoder.
         obs_rgb = rearrange(agent_view, "b t h w c -> (b t) c h w")
         obs_rgb = self.transforms(obs_rgb)
         x_obs = self.view_backbone(obs_rgb)[-1]
         x_obs = self.updim_obs(x_obs)
         x_obs = rearrange(x_obs, "b c h w -> b (h w) c")
 
-        # 2. encode cross-view image with view_backbone
+        # The same RGB encoder processes the goal image.
         cross_view_rgb = rearrange(
             cross_view["cross_view_image"], "b t h w c -> (b t) c h w"
         )
         cross_view_rgb = self.transforms(cross_view_rgb)
         x_cross_image = self.view_backbone(cross_view_rgb)[-1]
 
-        # 3. encode cross-view object mask with mask_backbone
+        # The trainable mask encoder receives a one-channel 0/1 target mask.
         cross_view_mask = cross_view["cross_view_obj_mask"]
         cross_view_mask = rearrange(cross_view_mask, "b t h w -> (b t) 1 h w") * 1.0
         x_cross_mask = self.mask_backbone(cross_view_mask)[-1]
 
-        # 4. fuse x_cross image and x_cross mask in the feature dimension
+        # Align goal RGB and mask patches by position, then fuse channels.
         x_cross = torch.cat([x_cross_image, x_cross_mask], dim=1)
         x_cross = self.updim_cross(x_cross)
         x_cross = rearrange(x_cross, "b c h w -> b (h w) c")
 
-        # 5. fuse x_obs and x_cross in the spatial dimension
-        # generate view tokens
+        # Non-causal spatial attention aligns the current and goal views.
+        # Learned query tokens retain the condensed per-frame representation.
         x_cls = self.view_cls_tokens.expand(x_obs.shape[0], -1, -1)
         x_view = torch.cat([x_cls, x_obs, x_cross], dim=1)
         x_view = self.view_resampler(x_view)[:, : self.num_view_tokens, :]
@@ -197,6 +220,11 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
     def temporal_reason(
         self, x: torch.Tensor, memory: Optional[List[torch.Tensor]] = None
     ) -> torch.Tensor:
+        """Apply causal Transformer-XL reasoning over flattened step tokens.
+
+        ``memory`` carries the prior K-V state across fragments, matching the
+        long-history design discussed in paper Sec. 4 and Appendix B.2.
+        """
         b, t = x.shape[:2]
         if not hasattr(self, "first") or self.first.shape[:2] != (b, t):
             self.first = torch.tensor([[False]], device=x.device).repeat(b, t)
@@ -211,21 +239,24 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
     def forward(
         self, input: Dict, state_in: Optional[List[torch.Tensor]] = None, **kwargs
     ) -> Dict:
+        """Return policy/value and auxiliary outputs, plus recurrent state."""
 
         b, t = input["image"].shape[:2]
 
         x_view = self.encode_view_tokens(input["image"], input["cross_view"])
         x = x_view
 
-        # generate interaction tokens
+        # The interaction ID is constant for a goal; -1 maps to the null slot.
         x_cond = self.interaction(input["cross_view"]["cross_view_obj_id"] + 1)
         x_cond = rearrange(x_cond, "b t c -> b t 1 c")
         x = torch.cat([x, x_cond], dim=-2)
 
-        # generate prev_action tokens
+        # Optional previous-action conditioning follows the loaded checkpoint.
         if self.use_prev_action:
             x_prev_a = self.action_embedding_layer(input["env_prev_action"])
             if "prev_action_dropout" in input:
+                # Imitation data may hide this token so the policy cannot rely
+                # solely on the previous control instead of visual evidence.
                 dropout_mask = input["prev_action_dropout"][..., None]
                 dropout_embedding = repeat(
                     self.dropout_embedding, "1 1 c -> b t c", b=b, t=t
@@ -234,9 +265,6 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
                     1 - dropout_mask
                 )
 
-            # dropout_embedding = repeat(self.dropout_embedding, "1 1 c -> b t c", b=b, t=t) #! only for debug
-            # x_prev_a = dropout_embedding #! only for debug
-
             x_prev_a = rearrange(x_prev_a, "b t c -> b t 1 c")
             x = torch.cat([x, x_prev_a], dim=-2)
 
@@ -244,6 +272,7 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
         z, state_out = self.temporal_reason(x, state_in)
         z = rearrange(z, "b (t n) c -> b t n c", t=t)
 
+        # Separate spatial probes from the final token used for control.
         aux_vis_logits = self.aux_vis_head(z[:, :, self.index_bias, :])
         exist = aux_vis_logits[:, :, 0:1]
         point = aux_vis_logits[:, :, 1:3]
@@ -267,20 +296,8 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
             ]
         return [t.to(self.device) for t in self.recurrent.initial_state(batch_size)]
 
-    # def merge_input(self, inputs) -> torch.tensor:
-    #     print(f"{inputs[0].keys() = }; {inputs[0]['image'].shape = }")
-    #     inputs = auto_to_torch(inputs, device=self.device)
-    #     out_inputs = auto_to_torch(auto_stack([auto_stack([input]) for input in inputs]), device=self.device)
-    #     return out_inputs
-    #     if inputs[0]["image"].dim() == 3:
-    #         # in_inputs=[{"image": input["image"]} for input in inputs]
-    #         out_inputs = auto_to_torch(auto_stack([auto_stack([input]) for input in in_inputs]), device=self.device)
-    #         return out_inputs
-    #     elif inputs[0]["image"].dim() == 4:
-    #         out_inputs = auto_to_torch(auto_stack([input["image"] for input in inputs]), device=self.device)
-    #         return out_inputs
-
     def merge_state(self, states) -> Optional[List[torch.Tensor]]:
+        """Batch per-environment K-V states for MineStudio rollout inference."""
         result_states = []
         for i in range(len(states[0])):
             result_states.append(
@@ -291,6 +308,7 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
         return result_states
 
     def split_state(self, states, split_num) -> Optional[List[List[torch.Tensor]]]:
+        """Return one recurrent state per environment after batched inference."""
         result_states = [
             [states[j][i : i + 1] for j in range(len(states))] for i in range(split_num)
         ]
@@ -300,7 +318,12 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
 def load_cross_view_rocket(
     ckpt_path: str, model_config: Optional[Dict] = None
 ) -> CrossViewRocket:
-    """Load a full training checkpoint or a ROCKET-3 state dictionary."""
+    """Load either a MineStudio training checkpoint or bare ROCKET-3 weights.
+
+    Bare weights carry no model config, so infer the embedding width, number of
+    goal-view tokens and previous-action conditioning from tensor names/shapes.
+    Other non-default architecture choices need ``model_config``.
+    """
     checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=True)
     if "state_dict" in checkpoint:
         config = dict(checkpoint["hyper_parameters"]["model"])
@@ -309,6 +332,7 @@ def load_cross_view_rocket(
         weights = checkpoint
         config = {}
 
+    # A trainer may nest the policy under ``mine_policy`` in its state dict.
     state_dict = {key.removeprefix("mine_policy."): val for key, val in weights.items()}
     if "view_cls_tokens" not in state_dict:
         raise ValueError("Checkpoint does not contain ROCKET-3 policy weights")
@@ -323,6 +347,7 @@ def load_cross_view_rocket(
         )
     if model_config:
         config.update(model_config)
+    # The checkpoint supplies both backbones; avoid fetching timm weights.
     config["pretrained_backbone"] = False
     model = CrossViewRocket(**config)
     model.load_state_dict(state_dict, strict=True)

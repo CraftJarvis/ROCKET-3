@@ -1,4 +1,8 @@
-"""Start ROCKET-3 online reinforcement learning with a local checkpoint."""
+"""Start MineStudio's ROCKET-3 online PPO path (paper Sec. 4 / Appendix B).
+
+MineStudio owns distributed rollout collection and PPO optimization; this
+entry point supplies the local policy, environment and training configuration.
+"""
 
 import argparse
 from functools import partial
@@ -22,6 +26,7 @@ def parse_args(argv=None):
 
 
 def main(argv=None):
+    """Validate the checkpoint, then launch rollout workers and trainer."""
     args = parse_args(argv)
     checkpoint = args.checkpoint.expanduser().resolve()
     if not checkpoint.is_file():
@@ -36,6 +41,7 @@ def main(argv=None):
     config_path = Path(__file__).resolve().parent / "online_configs" / "rocket_log.py"
     online_cfg = OmegaConf.create(online_dict)
     policy_factory = partial(policy_generator, str(checkpoint))
+    # MineStudio records the exact configuration source with training outputs.
     config_source = config_path.read_text(encoding="utf-8")
 
     start_rolloutmanager(

@@ -1,15 +1,26 @@
+"""MineStudio PPO setup for one ROCKET-3 Minecraft online task.
+
+The paper's Sec. 4 / Appendix B describes a broader multi-task run with
+asynchronous rollouts, fragment storage, truncated BPTT and KL-regularized
+PPO. The values below are this repository's configuration; several differ
+from the paper's Table 3 and should not be treated as exact reproduction
+settings. MineStudio implements the rollout manager and PPO trainer.
+"""
+
 online_dict = {
     "trainer_name": "PPOTrainer",
     "detach_rollout_manager": True,
     "rollout_config": {
-        "num_rollout_workers": 2,  #! 3
+        "num_rollout_workers": 2,
         "num_gpus_per_worker": 1.0,
         "num_cpus_per_worker": 1,
-        "fragment_length": 128,  #! 256
+        # One recurrent state is stored per experience fragment (paper Fig. 2).
+        "fragment_length": 128,
         "to_send_queue_size": 8,
         "worker_config": {
-            "num_envs": 16,  #! 16
-            "batch_size": 8,  #! 8
+            # Independent simulators share batched policy inference.
+            "num_envs": 16,
+            "batch_size": 8,
             "restart_interval": 3600,  # 1h
             "video_fps": 20,
             "video_output_dir": "output/videos",
@@ -21,6 +32,8 @@ online_dict = {
             "fragments_per_report": 40,
             "fragments_per_chunk": 1,
             "database_config": {
+                # Rollout fragments live on disk; shared storage is needed
+                # when trainer and workers run on different machines.
                 "path": "output/replay_buffer_cache",
                 "num_shards": 8,
             },
@@ -28,7 +41,7 @@ online_dict = {
         "episode_statistics_config": {},
     },
     "train_config": {
-        "num_workers": 6,  #! 4
+        "num_workers": 6,
         "num_gpus_per_worker": 1.0,
         "num_iterations": 4000,
         "vf_warmup": 0,
@@ -37,30 +50,34 @@ online_dict = {
         "weight_decay": 0.04,
         "adam_eps": 1e-8,
         "batch_size_per_gpu": 1,
-        "batches_per_iteration": 100,  #! 200
-        "gradient_accumulation": 5,  #! 10  # TODO: check
-        "epochs_per_iteration": 1,  # TODO: check
-        "context_length": 64,  #! 64
+        "batches_per_iteration": 100,
+        "gradient_accumulation": 5,
+        "epochs_per_iteration": 1,
+        # MineStudio processes long sequences in shorter tBPTT segments.
+        "context_length": 64,
         "discount": 0.999,
         "gae_lambda": 0.95,
         "ppo_clip": 0.2,
-        "clip_vloss": False,  # TODO: check
-        "max_grad_norm": 5,  # ????
+        "clip_vloss": False,
+        "max_grad_norm": 5,
         "zero_initial_vf": True,
         "ppo_policy_coef": 1.0,
-        "ppo_vf_coef": 0.5,  # TODO: check
+        "ppo_vf_coef": 0.5,
+        # Paper Eq. 9 regularizes PPO toward a pretrained reference policy.
         "kl_divergence_coef_rho": 0.2,
         "entropy_bonus_coef": 0.0,
         "coef_rho_decay": 0.9995,
-        "log_ratio_range": 50,  # for numerical stability
-        "normalize_advantage_full_batch": True,  # TODO: check!!!
+        "log_ratio_range": 50,  # numerical clipping inside MineStudio
+        "normalize_advantage_full_batch": True,
         "use_normalized_vf": True,
         "num_readers": 4,
         "num_cpus_per_reader": 0.1,
-        "prefetch_batches": 4,  #! 2
+        "prefetch_batches": 4,
         "save_interval": 10,
         "keep_interval": 40,
-        "record_video_interval": 1,  #! 2
+        "record_video_interval": 1,
+        # Verify MineStudio's reference-update semantics before comparing a
+        # run to the paper's fixed imitation-learning reference policy.
         "enable_ref_update": True,
         "resume": None,
         "resume_optimizer": True,
@@ -71,6 +88,11 @@ online_dict = {
 
 
 def env_generator():
+    """Build the released block-target example, not the full paper task mix.
+
+    The goal event ID, camera offsets and available targets are set below.
+    Changing task composition requires corresponding callbacks/rewards.
+    """
     from minestudio.simulator import MinecraftSim
     from minestudio.simulator.callbacks import (
         CommandsCallback,
@@ -105,6 +127,8 @@ def env_generator():
         "dandelion",
     ]
 
+    # Only matching blocks/logs can become the chosen target, even though
+    # nearby mobs are also spawned to add visual and interaction context.
     re_pattern = f".*({'|'.join(blocks)}|log).*"
 
     env = MinecraftSim(
@@ -196,6 +220,8 @@ def env_generator():
             RocketOnlineCallback(
                 reset_configs=[
                     ResetConfig(
+                        # Candidate goal cameras supply O_g; the projected
+                        # target mask supplies M_g (paper task T in Sec. 4).
                         views=[
                             (15, 10, 0, 45, 45),  # p1, left
                             (-15, 10, 0, -45, 45),  # p2, right
@@ -219,6 +245,7 @@ def env_generator():
 
 
 def policy_generator(checkpoint_path: str):
+    """Create the CUDA policy used by MineStudio's trainer and rollouts."""
     from model import load_cross_view_rocket
 
     policy = load_cross_view_rocket(checkpoint_path).to("cuda")
