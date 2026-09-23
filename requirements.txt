@@ -1,0 +1,11 @@
+einops
+huggingface-hub
+minestudio
+numpy
+omegaconf
+opencv-python-headless
+pillow
+rich
+timm
+torch
+torchvision
