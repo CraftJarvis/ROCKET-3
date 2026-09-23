@@ -35,12 +35,15 @@ and results.
 | `rocket_callbacks.py` | Minecraft task generation and reward callbacks |
 | `online_configs/rocket_log.py` | Multi-task online RL configuration |
 | `run_online.py` | Online RL entry point |
+| `smoke_test.py` | CPU checkpoint load and one-step inference check |
 
 This snapshot contains the model and the Minecraft online training path. Dataset
 generation, the complete pretraining pipeline, evaluation in other environments,
 and the exact dependency versions used for the paper are not included here. The
-published model repository and a local MineStudio checkpoint may use different
-formats; the training entry point below expects a local MineStudio checkpoint.
+model loader accepts a ROCKET-3 state dictionary or a training checkpoint
+containing `state_dict` and `hyper_parameters.model`. It infers the view token
+count and previous-action setting from a state dictionary. Other architecture
+settings must match the defaults in `model.py` or be supplied to the loader.
 
 ## Setup and training entry point
 
@@ -67,6 +70,12 @@ The checkpoint is deliberately excluded from Git. Update
 `online_configs/rocket_log.py` for your compute resources and task setup before
 training. The command has not been verified end to end in a clean environment;
 the dependency versions and simulator setup still need a reproducibility pass.
+
+To check a local checkpoint on a CPU machine without starting Minecraft or Ray:
+
+```bash
+python smoke_test.py --checkpoint /path/to/rocket3.ckpt
+```
 
 ## Development
 

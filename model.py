@@ -67,12 +67,13 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
         use_prev_action: bool = False,
         num_view_tokens: int = 1,
         action_space=None,
+        pretrained_backbone: bool = True,
         **kwargs,
     ):
         super().__init__(hiddim=hiddim, action_space=action_space)
         # super().__init__(hiddim=hiddim, action_space=action_space, nucleus_prob=0.85)
         self.view_backbone = timm.create_model(
-            view_backbone, pretrained=True, features_only=True
+            view_backbone, pretrained=pretrained_backbone, features_only=True
         )
         data_config = timm.data.resolve_model_data_config(self.view_backbone)
         self.transforms = torchvision.transforms.Compose(
@@ -84,7 +85,10 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
             ]
         )
         self.mask_backbone = timm.create_model(
-            mask_backbone, pretrained=True, features_only=True, in_chans=1
+            mask_backbone,
+            pretrained=pretrained_backbone,
+            features_only=True,
+            in_chans=1,
         )
         self.updim_obs = nn.Conv2d(
             self.view_backbone.feature_info[-1]["num_chs"],
@@ -293,11 +297,33 @@ class CrossViewRocket(MinePolicy, PyTorchModelHubMixin):
         return result_states
 
 
-def load_cross_view_rocket(ckpt_path: Optional[str] = None):
-    ckpt = torch.load(ckpt_path)
-    model = CrossViewRocket(**ckpt["hyper_parameters"]["model"])
-    state_dict = {
-        k.replace("mine_policy.", ""): v for k, v in ckpt["state_dict"].items()
-    }
-    model.load_state_dict(state_dict, strict=False)
+def load_cross_view_rocket(
+    ckpt_path: str, model_config: Optional[Dict] = None
+) -> CrossViewRocket:
+    """Load a full training checkpoint or a ROCKET-3 state dictionary."""
+    checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=True)
+    if "state_dict" in checkpoint:
+        config = dict(checkpoint["hyper_parameters"]["model"])
+        weights = checkpoint["state_dict"]
+    else:
+        weights = checkpoint
+        config = {}
+
+    state_dict = {key.removeprefix("mine_policy."): val for key, val in weights.items()}
+    if "view_cls_tokens" not in state_dict:
+        raise ValueError("Checkpoint does not contain ROCKET-3 policy weights")
+    if "state_dict" not in checkpoint:
+        view_tokens = state_dict["view_cls_tokens"]
+        config.update(
+            hiddim=view_tokens.shape[-1],
+            num_view_tokens=view_tokens.shape[1],
+            use_prev_action=any(
+                key.startswith("action_embedding_layer.") for key in state_dict
+            ),
+        )
+    if model_config:
+        config.update(model_config)
+    config["pretrained_backbone"] = False
+    model = CrossViewRocket(**config)
+    model.load_state_dict(state_dict, strict=True)
     return model
