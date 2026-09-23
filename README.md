@@ -30,12 +30,17 @@ and results.
 
 | Path | Purpose |
 | --- | --- |
-| `model.py` | Cross-view policy architecture and checkpoint loader |
-| `cross_view_dataset.py` | MineStudio adapter for cross-view pretraining data |
-| `rocket_callbacks.py` | Minecraft task generation and reward callbacks |
-| `online_configs/rocket_log.py` | Multi-task online RL configuration |
+| `rocket3/policy.py` | Cross-view policy architecture and checkpoint loader |
+| `rocket3/dataset.py` | MineStudio adapter for cross-view pretraining data |
+| `rocket3/minecraft/geometry.py` | Voxel projection and visibility helpers |
+| `rocket3/minecraft/tasks.py` | Minecraft task generation and reward callbacks |
+| `rocket3/training.py` | Online RL configuration and environment/policy factories |
 | `run_online.py` | Online RL entry point |
 | `smoke_test.py` | CPU checkpoint load and one-step inference check |
+
+The former top-level modules (`model.py`, `cross_view_dataset.py`,
+`rocket_callbacks.py`, and `online_configs/rocket_log.py`) re-export their old
+symbols for existing scripts. New code should import from the `rocket3` package.
 
 This snapshot contains the model and the Minecraft online training path. Dataset
 generation, the complete pretraining pipeline, evaluation in other environments,
@@ -43,7 +48,7 @@ and the exact dependency versions used for the paper are not included here. The
 model loader accepts a ROCKET-3 state dictionary or a training checkpoint
 containing `state_dict` and `hyper_parameters.model`. It infers the view token
 count and previous-action setting from a state dictionary. Other architecture
-settings must match the defaults in `model.py` or be supplied to the loader.
+settings must match the defaults in `rocket3/policy.py` or be supplied to the loader.
 
 ## Setup and training entry point
 
@@ -67,7 +72,7 @@ python run_online.py --checkpoint /path/to/rocket3.ckpt \
 ```
 
 The checkpoint is deliberately excluded from Git. Update
-`online_configs/rocket_log.py` for your compute resources and task setup before
+`rocket3/training.py` for your compute resources and task setup before
 training. The command has not been verified end to end in a clean environment;
 the dependency versions and simulator setup still need a reproducibility pass.
 

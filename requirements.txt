@@ -6,7 +6,6 @@ omegaconf
 opencv-python-headless
 pillow
 ray[train]
-rich
 timm
 torch
 torchvision

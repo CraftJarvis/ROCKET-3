@@ -15,7 +15,7 @@ def parse_args(argv=None):
         "--checkpoint",
         required=True,
         type=Path,
-        help="Path to a ROCKET-3 checkpoint in MineStudio format.",
+        help="Path to a ROCKET-3 state dictionary or MineStudio checkpoint.",
     )
     parser.add_argument(
         "--ray-address",
@@ -36,18 +36,18 @@ def main(argv=None):
     from minestudio.online.trainer.start_trainer import start_trainer
     from omegaconf import OmegaConf
 
-    from online_configs.rocket_log import env_generator, online_dict, policy_generator
+    from rocket3.training import ONLINE_CONFIG, make_minecraft_env, make_policy
 
-    config_path = Path(__file__).resolve().parent / "online_configs" / "rocket_log.py"
-    online_cfg = OmegaConf.create(online_dict)
-    policy_factory = partial(policy_generator, str(checkpoint))
+    config_path = Path(__file__).resolve().parent / "rocket3" / "training.py"
+    online_cfg = OmegaConf.create(ONLINE_CONFIG)
+    policy_factory = partial(make_policy, str(checkpoint))
     # MineStudio records the exact configuration source with training outputs.
     config_source = config_path.read_text(encoding="utf-8")
 
     start_rolloutmanager(
-        policy_factory, env_generator, online_cfg, address=args.ray_address
+        policy_factory, make_minecraft_env, online_cfg, address=args.ray_address
     )
-    start_trainer(policy_factory, env_generator, online_cfg, config_source)
+    start_trainer(policy_factory, make_minecraft_env, online_cfg, config_source)
 
 
 if __name__ == "__main__":
